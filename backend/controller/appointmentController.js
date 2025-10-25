@@ -58,6 +58,13 @@ async function bookAppointment(req, res) {
       status
     });
 
+    // Emit socket events for new appointment
+    const io = req.app.get('io');
+    io.to(`doctor-${doctor_id}`).emit('queueUpdate', {
+      type: 'new_appointment',
+      appointment
+    });
+
     res.status(201).json({ success: true, message: 'Appointment booked successfully', appointment });
   } catch (error) {
     console.error('Appointment Booking Error:', error);
@@ -107,7 +114,25 @@ async function advanceAppointment(req, res) {
     if (next) {
       next.status = 'called';
       await next.save();
+      
+      // Emit socket events for next patient being called
+      const io = req.app.get('io');
+      io.to(`appointment-${next._id}`).emit('appointmentCalled', {
+        appointment: next
+      });
+      io.to(`doctor-${next.doctor_id}`).emit('queueUpdate', {
+        type: 'appointment_called',
+        appointment: next
+      });
     }
+
+    // Emit queue update for served appointment
+    const io = req.app.get('io');
+    io.to(`doctor-${appt.doctor_id}`).emit('queueUpdate', {
+      type: 'appointment_served',
+      appointment: appt,
+      next: next
+    });
 
     res.json({ success:true, served: appt, next });
   } catch (err) {
@@ -129,10 +154,42 @@ async function getAppointmentById(req, res) {
   }
 }
 
+// Get summary of waiting counts for all doctors (management dashboard)
+async function getQueuesSummary(req, res) {
+  try {
+    // use today's date (midnight)
+    const apptDate = new Date();
+    apptDate.setHours(0,0,0,0);
+
+    const doctors = await Doctor.find({}, { doctor_id: 1, name: 1, specialization: 1 });
+
+    // For each doctor, count pending and called appointments for today
+    const results = await Promise.all(doctors.map(async (d) => {
+      const count = await Appointment.countDocuments({
+        doctor_id: d.doctor_id,
+        date: apptDate,
+        status: { $in: ['pending','called'] }
+      });
+      return {
+        doctor_id: d.doctor_id,
+        name: d.name,
+        specialization: d.specialization,
+        waiting: count
+      };
+    }));
+
+    res.json({ success: true, summary: results });
+  } catch (err) {
+    console.error('Error fetching management queue summary:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+}
+
 module.exports = {
   getAllDoctors,
   bookAppointment,
   getQueue,
   advanceAppointment,
+  getQueuesSummary,
   getAppointmentById
 };

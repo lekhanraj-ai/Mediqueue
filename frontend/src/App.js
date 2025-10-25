@@ -10,6 +10,8 @@ import DoctorLogin from './pages/DoctorLogin';
 import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
 import PatientQueue from './pages/PatientQueue';
+import ManagementLogin from './pages/ManagementLogin';
+import ManagementDashboard from './pages/ManagementDashboard';
 import theme from './theme';
 import './App.css';
 
@@ -49,7 +51,8 @@ function App() {
               <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
               <Route path="/patient/PatientDashboard" element={<PatientDashboard />} />
               <Route path="/patient/queue" element={<PatientQueue />} />
-              <Route path="/login/management" element={<div>Management Login (TODO)</div>} />
+              <Route path="/login/management" element={<ManagementLogin />} />
+              <Route path="/management/dashboard" element={<ManagementDashboard />} />
               <Route path="/register" element={<Register />} />
               <Route path="/" element={<Navigate to="/login" />} />
             </Routes>
