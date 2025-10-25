@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Grid, Card, CardContent, Typography, Button, Avatar, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
@@ -26,7 +26,7 @@ const ManagementDashboard = () => {
   const [summary, setSummary] = useState([]);
 
   useEffect(() => {
-    const auth = sessionStorage.getItem('managementAuth');
+    const auth = localStorage.getItem('managementAuth');
     if (!auth) {
       navigate('/login/management');
       return;
@@ -51,8 +51,9 @@ const ManagementDashboard = () => {
   }, [navigate]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('managementAuth');
-    navigate('/login');
+    localStorage.removeItem('managementAuth');
+    localStorage.removeItem('managementUser');
+    navigate('/login/management');
   };
 
   return (
