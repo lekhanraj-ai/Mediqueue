@@ -18,6 +18,8 @@ import {
   Card,
   CardContent,
   DialogContentText,
+  Avatar,
+  Stack,
 } from '@mui/material';
 import { AccessTime, ContactPhone } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -49,7 +51,8 @@ const PatientDashboard = () => {
     age: '',
     mobileNumber: '',
     selectedDoctor: '',
-    description: ''
+    description: '',
+    doctorName: ''
   });
 
   // Reset form data when dialog closes
@@ -59,7 +62,8 @@ const PatientDashboard = () => {
       age: '',
       mobileNumber: '',
       selectedDoctor: '',
-      description: ''
+      description: '',
+      doctorName: ''
     });
     setBookingError('');
     setOpenBookingDialog(false);
@@ -103,26 +107,46 @@ const PatientDashboard = () => {
   };
 
   const validateForm = () => {
-    if (!bookingData.patientName.trim()) {
-      setBookingError('Patient name is required');
-      return false;
+    // Clear any previous error
+    setBookingError('');
+    
+    // Get the selected doctor object
+    const selectedDoctor = doctors.find(d => d.doctor_id === bookingData.selectedDoctor);
+    
+  const validations = [
+      {
+        condition: !bookingData.patientName.trim(),
+        message: 'Patient name is required'
+      },
+      {
+        condition: !bookingData.age || bookingData.age < 1 || bookingData.age > 150,
+        message: 'Please enter a valid age between 1 and 150'
+      },
+      {
+        condition: !bookingData.mobileNumber || !/^\d{10}$/.test(bookingData.mobileNumber),
+        message: 'Please enter a valid 10-digit mobile number'
+      },
+      {
+        condition: !bookingData.selectedDoctor || !selectedDoctor,
+        message: 'Please select a doctor'
+      },
+      {
+        condition: !selectedSlot,
+        message: 'Please select a time slot'
+      },
+      {
+        condition: !bookingData.description.trim(),
+        message: 'Please provide a description of the problem'
+      }
+    ];
+
+    for (const validation of validations) {
+      if (validation.condition) {
+        setBookingError(validation.message);
+        return false;
+      }
     }
-    if (!bookingData.age || bookingData.age < 1) {
-      setBookingError('Please enter a valid age');
-      return false;
-    }
-    if (!bookingData.mobileNumber || !/^\d{10}$/.test(bookingData.mobileNumber)) {
-      setBookingError('Please enter a valid 10-digit mobile number');
-      return false;
-    }
-    if (!bookingData.selectedDoctor) {
-      setBookingError('Please select a doctor');
-      return false;
-    }
-    if (!bookingData.description.trim()) {
-      setBookingError('Please provide a description of the problem');
-      return false;
-    }
+
     return true;
   };
 
@@ -136,30 +160,44 @@ const PatientDashboard = () => {
       console.log('Selected slot:', selectedSlot);
       console.log('Booking data:', bookingData);
 
-      const appointmentData = {
-        patientName: bookingData.patientName.trim(),
-        age: parseInt(bookingData.age),
-        mobileNumber: bookingData.mobileNumber.trim(),
-        doctorId: bookingData.selectedDoctor,
-        timeSlot: selectedSlot.time,
-        description: bookingData.description.trim()
-      };
+      try {
+        const selectedDoctor = doctors.find(d => d.doctor_id === bookingData.selectedDoctor);
+        
+        // Match backend expected field names
+        const appointmentData = {
+          patient_name: bookingData.patientName.trim(),
+          age: String(parseInt(bookingData.age)),
+          contact_number: bookingData.mobileNumber.trim(),
+          doc_name: selectedDoctor.name,
+          doctor_id: selectedDoctor.doctor_id,
+          date: new Date().toISOString(),
+          timeSlot: selectedSlot.time,
+          description: bookingData.description.trim()
+        };
 
-      console.log('Sending appointment data:', { patientName: bookingData.patientName.trim(),
-        age: parseInt(bookingData.age),
-        mobileNumber: bookingData.mobileNumber.trim(),
-        doctorId: bookingData.selectedDoctor,
-        timeSlot: selectedSlot.time,
-        description: bookingData.description.trim()});
+        console.log('Sending appointment data:', appointmentData);
 
-      const response = await api.post('/appointment/book', appointmentData);
-      console.log('Server response:', response.data);
-      
-      if (response.data && response.data.appointment) {
-        setOpenBookingDialog(false);
-        setOpenConfirmDialog(true);
-      } else {
-        setBookingError('Invalid response from server');
+        const response = await api.post('/appointments', appointmentData);
+        console.log('Server response:', response.data);
+
+        if (response.data && response.data.appointment) {
+          // Store the doctor name and token for display in confirmation
+          setBookingData(prev => ({
+            ...prev,
+            doctorName: selectedDoctor.name,
+            tokenNumber: response.data.appointment.tokenNumber
+          }));
+
+          // Clear error and show confirmation
+          setBookingError('');
+          setOpenBookingDialog(false);
+          setOpenConfirmDialog(true);
+        } else {
+          setBookingError('Server error: Invalid response');
+        }
+      } catch (error) {
+        console.error('API error:', error);
+        setBookingError(error.response?.data?.message || 'Failed to book appointment. Please try again.');
       }
     } catch (error) {
       console.error('Booking error:', error);
@@ -273,11 +311,20 @@ const PatientDashboard = () => {
         {/* Booking Form Dialog */}
         <Dialog
           open={openBookingDialog}
-          onClose={() => setOpenBookingDialog(false)}
           maxWidth="sm"
           fullWidth
+          onClose={handleDialogClose}
+          PaperProps={{
+            sx: {
+              width: '100%',
+              maxWidth: 600,
+              p: 2
+            }
+          }}
         >
-          <DialogTitle>Book Appointment</DialogTitle>
+          <DialogTitle>
+            Book Appointment{selectedSlot ? ` — ${selectedSlot.time}` : ''}
+          </DialogTitle>
             <DialogContent>
               {bookingError && (
                 <Typography color="error" sx={{ mb: 2 }}>
@@ -331,13 +378,19 @@ const PatientDashboard = () => {
                 pattern: "[0-9]*"
               }}
             />
-            <FormControl fullWidth margin="dense">
+            <FormControl fullWidth margin="dense" required error={bookingError && !bookingData.selectedDoctor}>
               <InputLabel>Select Doctor</InputLabel>
               <Select
                 name="selectedDoctor"
                 value={bookingData.selectedDoctor}
                 onChange={handleInputChange}
                 label="Select Doctor"
+                error={bookingError && !bookingData.selectedDoctor}
+                MenuProps={{
+                  PaperProps: {
+                    sx: { maxHeight: 300 }
+                  }
+                }}
               >
                 {doctors.map((doctor) => (
                   <MenuItem key={doctor.doctor_id} value={doctor.doctor_id}>
@@ -351,15 +404,18 @@ const PatientDashboard = () => {
               name="description"
               label="Description of the Problem"
               fullWidth
+              required
               multiline
               rows={4}
               value={bookingData.description}
               onChange={handleInputChange}
+              error={bookingError && !bookingData.description.trim()}
+              helperText={bookingError && !bookingData.description.trim() ? "Please describe your medical condition" : ""}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenBookingDialog(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} variant="contained">
+            <Button onClick={handleDialogClose}>Cancel</Button>
+            <Button onClick={handleSubmit} variant="contained" disabled={!selectedSlot}>
               Submit
             </Button>
           </DialogActions>
@@ -375,12 +431,27 @@ const PatientDashboard = () => {
             <DialogContentText>
               Your appointment has been booked successfully!
               <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Your token: {bookingData.tokenNumber || 'N/A'}</Typography>
+                {bookingData.tokenNumber ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                    <Typography sx={{ fontSize: 14 }} color="text.secondary">People ahead:</Typography>
+                    <Stack direction="row" spacing={1}>
+                      {Array.from({ length: Math.min((bookingData.tokenNumber - 1) || 0, 9) }).map((_, i) => (
+                        <Avatar key={i} sx={{ width: 28, height: 28, bgcolor: '#90caf9' }}>{i+1}</Avatar>
+                      ))}
+                    </Stack>
+                    <Typography sx={{ ml: 2, color: 'text.secondary' }}>{Math.max((bookingData.tokenNumber - 1), 0)} ahead</Typography>
+                  </Box>
+                ) : null}
                 <Typography><strong>Time Slot:</strong> {selectedSlot?.time}</Typography>
                 <Typography><strong>Patient Name:</strong> {bookingData.patientName}</Typography>
                 <Typography><strong>Age:</strong> {bookingData.age}</Typography>
                 <Typography><strong>Mobile Number:</strong> {bookingData.mobileNumber}</Typography>
-                <Typography><strong>Doctor:</strong> {bookingData.selectedDoctor}</Typography>
+                <Typography><strong>Doctor:</strong> {bookingData.doctorName || 'Not specified'}</Typography>
                 <Typography><strong>Description:</strong> {bookingData.description}</Typography>
+                <Typography sx={{ mt: 2, color: 'success.main', fontWeight: 'bold' }}>
+                  Your appointment has been confirmed! Please arrive 15 minutes before your scheduled time.
+                </Typography>
               </Box>
             </DialogContentText>
           </DialogContent>
@@ -398,9 +469,30 @@ const PatientDashboard = () => {
                   description: '',
                 });
               }}
-              variant="contained"
+              variant="outlined"
             >
               Close
+            </Button>
+            <Button
+              onClick={() => {
+                // navigate to the animated queue page with appointment info
+                const appt = bookingData.tokenNumber ? {
+                  patient_name: bookingData.patientName,
+                  tokenNumber: bookingData.tokenNumber,
+                  doc_name: bookingData.doctorName,
+                  doctor_id: bookingData.selectedDoctor,
+                  timeSlot: selectedSlot?.time,
+                  date: new Date().toISOString()
+                } : null;
+                if (appt) {
+                  // close dialog and go to queue page
+                  setOpenConfirmDialog(false);
+                  navigate('/patient/queue', { state: { appointment: appt } });
+                }
+              }}
+              variant="contained"
+            >
+              View Queue
             </Button>
           </DialogActions>
         </Dialog>
