@@ -3,8 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { AuthProvider } from './context/AuthContext';
 import SplashScreen from './components/SplashScreen';
+import LoginMenu from './pages/LoginMenu';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import DoctorLogin from './pages/DoctorLogin';
+import DoctorDashboard from './pages/DoctorDashboard';
+import PatientDashboard from './pages/PatientDashboard';
 import theme from './theme';
 import './App.css';
 
@@ -38,7 +42,12 @@ function App() {
         <AuthProvider>
           <Router>
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<LoginMenu />} />
+              <Route path="/login/patient" element={<Login />} />
+              <Route path="/login/doctor" element={<DoctorLogin />} />
+              <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+              <Route path="/patient/PatientDashboard" element={<PatientDashboard />} />
+              <Route path="/login/management" element={<div>Management Login (TODO)</div>} />
               <Route path="/register" element={<Register />} />
               <Route path="/" element={<Navigate to="/login" />} />
             </Routes>

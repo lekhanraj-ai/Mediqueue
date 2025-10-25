@@ -1,13 +1,16 @@
-const express=require("express")
-const app=express()
-const cors=require('cors')
-const {router}=require('../routes/route.js')
-const connectDB=require('../connect/connect.js')
-const port=process.env.PORT||5000
-app.use(cors())
-app.use('/api',router)
-app.use(express.json())
+const express = require("express")
+const app = express()
+const cors = require('cors')
+const {router} = require('../routes/route.js')
+const connectDB = require('../connect/connect.js')
 require('dotenv').config()
+
+const port = process.env.PORT || 5000
+
+// Middleware
+app.use(cors())
+app.use(express.json()) // This should come before routes
+app.use('/api', router)
 
 
 

@@ -32,15 +32,28 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       // backend expects { fullName, password }
       const payload = { fullName: formData.name, password: formData.password };
       const response = await api.post('/user/login', payload);
-      // backend responds with { message, user }
-      login(response.data.user);
-      navigate('/dashboard');
+      
+      if (response.data && response.data.user) {
+        // Store user data and login state
+        login(response.data.user);
+        // Navigate to patient dashboard with user data
+        navigate('/patient/PatientDashboard', { 
+          state: { 
+            user: response.data.user,
+            message: response.data.message 
+          } 
+        });
+      } else {
+        setError('Invalid login response');
+      }
     } catch (error) {
-      setError(error.response?.data?.message || 'An error occurred');
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Invalid credentials. Please try again.');
     }
   };
 
