@@ -48,8 +48,12 @@ function App() {
             </AppBar>
 
             <Routes>
-              <Route path="/login" element={<LoginMenu />} />
+              {/* Default login path shows patient login form directly */}
+              <Route path="/login" element={<Login />} />
+              {/* keep explicit patient path for compatibility */}
               <Route path="/login/patient" element={<Login />} />
+              {/* keep the old menu reachable if needed */}
+              <Route path="/login/menu" element={<LoginMenu />} />
               <Route path="/login/doctor" element={<DoctorLogin />} />
               <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
               <Route path="/patient/PatientDashboard" element={<PatientDashboard />} />

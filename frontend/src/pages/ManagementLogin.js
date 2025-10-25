@@ -24,7 +24,8 @@ const ManagementLogin = () => {
         // store simple management auth token in localStorage
         localStorage.setItem('managementAuth', 'true');
         localStorage.setItem('managementUser', JSON.stringify(resp.data.user || { user_id: userId }));
-        navigate('/management/dashboard');
+        // Use full navigation to ensure route guard picks up the new localStorage value
+        window.location.href = '/management/dashboard';
       } else {
         setError('Invalid credentials');
       }
@@ -32,7 +33,8 @@ const ManagementLogin = () => {
       // Fallback to client-side check if backend unavailable
       if (userId === 'admin' && password === 'admin123') {
         localStorage.setItem('managementAuth', 'true');
-        navigate('/management/dashboard');
+        // ensure navigation works reliably
+        window.location.href = '/management/dashboard';
       } else {
         setError(err.response?.data?.message || 'Login failed');
       }
